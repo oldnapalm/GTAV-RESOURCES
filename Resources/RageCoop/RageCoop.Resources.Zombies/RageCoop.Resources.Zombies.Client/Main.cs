@@ -3,6 +3,8 @@ using RageCoop.Client.Scripting;
 using System.Collections.Generic;
 using GTA.Native;
 using GTA.Math;
+using GTA.UI;
+using System.Drawing;
 
 namespace RageCoop.Resources.Zombies
 {
@@ -15,6 +17,8 @@ namespace RageCoop.Resources.Zombies
         private readonly List<Vehicle> _zombieVehicles = new List<Vehicle>();
 
         private RelationshipGroup _zombieGroup;
+
+        private static readonly TextElement _disableGodMode = new TextElement("please disable god mode", new Point(600, 300), 2.5f, Color.Goldenrod, GTA.UI.Font.Pricedown, Alignment.Center);
 
         public override void OnStart()
         {
@@ -33,6 +37,8 @@ namespace RageCoop.Resources.Zombies
 
             API.QueueAction(() =>
             {
+                if (Screen.IsEffectActive(ScreenEffect.Rampage))
+                    Screen.StopEffect(ScreenEffect.Rampage);
                 foreach (var ped in _zombies)
                 {
                     ped.MarkAsNoLongerNeeded();
@@ -54,9 +60,27 @@ namespace RageCoop.Resources.Zombies
             _level = (int)obj.Args[1];
         }
 
+        bool IsInvincible(Ped ped)
+        {
+            unsafe
+            {
+                uint flag = *(uint*)(ped.MemoryAddress + 0x188);
+                return ((flag & (1 << 8)) != 0) || ((flag & (1 << 9)) != 0);
+            }
+        }
+
         private void OnTick()
         {
             Ped player = Game.Player.Character;
+
+            if (IsInvincible(player))
+            {
+                _disableGodMode.Draw();
+                if (!Screen.IsEffectActive(ScreenEffect.Rampage))
+                    Screen.StartEffect(ScreenEffect.Rampage, 0, true);
+            }
+            else if (Screen.IsEffectActive(ScreenEffect.Rampage))
+                Screen.StopEffect(ScreenEffect.Rampage);
 
             foreach (var ped in World.GetNearbyPeds(player, 400))
             {
